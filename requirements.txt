@@ -1,6 +1,6 @@
 # requirements.txt - должно содержать:
 Flask==2.3.3
 python-telegram-bot==20.3
-gunicorn==20.1.0  # ← ЭТА СТРОКА ОБЯЗАТЕЛЬНА
+waitress==2.1.2
 python-dotenv==1.0.0
 sqlite3==2.6.0
