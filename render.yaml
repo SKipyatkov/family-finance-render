@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: family-finance-bot
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: WEB_APP_URL
+        value: https://family-finance-app.vercel.app
