@@ -1,12 +1,18 @@
 services:
   - type: web
     name: family-finance-bot
-    env: node
+    env: python
     plan: free
-    buildCommand: npm install
-    startCommand: node index.js
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: WEB_APP_URL
-        value: https://family-finance-app.vercel.app
+        value: https://family-finance-render.onrender.com
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///family_finance.db
+    healthCheckPath: /health
+    autoDeploy: true
