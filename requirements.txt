@@ -1,5 +1,20 @@
+# Основные зависимости
 Flask==2.3.3
 Flask-CORS==4.0.0
 python-telegram-bot==20.3
 waitress==2.1.2
 python-dotenv==1.0.0
+
+# Для работы с данными
+pandas==2.0.3
+numpy==1.24.3
+
+# Для графиков (опционально)
+matplotlib==3.7.2
+
+# Для безопасности
+cryptography==41.0.7
+
+# Утилиты
+python-dateutil==2.8.2
+pytz==2023.3

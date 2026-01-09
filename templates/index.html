@@ -2,85 +2,536 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Семейная Копилка 💰</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <title>💰 Семейная Копилка</title>
+
+    <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Стили -->
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Графики -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Иконки -->
+    <link rel="apple-touch-icon" href="/static/images/icon-192.png">
+    <link rel="icon" type="image/png" href="/static/images/icon-192.png">
+
+    <!-- PWA мета-теги -->
+    <meta name="theme-color" content="#4361ee">
+    <link rel="manifest" href="/static/manifest.json">
+
+    <style>
+        /* Дополнительные стили для улучшения UX на мобильных */
+        .tg-theme-dark body {
+            background: #1a1a2e;
+            color: #f8f9fa;
+        }
+
+        .tg-theme-dark .app-container {
+            background: #212529;
+            color: #f8f9fa;
+        }
+
+        .tg-theme-dark .card {
+            background: #343a40;
+            border-color: #495057;
+            color: #f8f9fa;
+        }
+
+        .tg-theme-dark .form-group input,
+        .tg-theme-dark .form-group select,
+        .tg-theme-dark .form-group textarea {
+            background: #495057;
+            border-color: #6c757d;
+            color: #f8f9fa;
+        }
+
+        /* Плавные переходы для темной темы */
+        body, .app-container, .card {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+    </style>
 </head>
 <body>
-    <div class="app-container">
+    <!-- Контейнер приложения -->
+    <div class="app-container" id="appContainer">
+
+        <!-- Шапка -->
         <header class="app-header">
-            <h1><i class="fas fa-piggy-bank"></i> Семейная Копилка</h1>
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-piggy-bank"></i>
+                    <span>Семейная Копилка</span>
+                </div>
+                <div class="user-info" id="userInfo">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="userName">Загрузка...</span>
+                </div>
+            </div>
+
+            <!-- Навигация -->
+            <nav class="main-nav">
+                <a href="#dashboard" class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+                    <i class="fas fa-home"></i>
+                    <span>Главная</span>
+                </a>
+                <a href="#transactions" class="nav-item" data-page="transactions" onclick="switchPage('transactions')">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Операции</span>
+                </a>
+                <a href="#reports" class="nav-item" data-page="reports" onclick="switchPage('reports')">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Отчеты</span>
+                </a>
+                <a href="#family" class="nav-item" data-page="family" onclick="switchPage('family')">
+                    <i class="fas fa-users"></i>
+                    <span>Семья</span>
+                </a>
+                <a href="#budget" class="nav-item" data-page="budget" onclick="switchPage('budget')">
+                    <i class="fas fa-wallet"></i>
+                    <span>Бюджет</span>
+                </a>
+            </nav>
         </header>
 
+        <!-- Основной контент -->
         <main class="app-main">
-            <div class="welcome-section">
-                <h2>Добро пожаловать!</h2>
-                <p>Управляйте семейным бюджетом вместе</p>
 
-                <div class="features">
-                    <div class="feature">
-                        <i class="fas fa-chart-pie"></i>
-                        <h3>Отчеты</h3>
-                        <p>Наглядная аналитика расходов</p>
+            <!-- Дашборд -->
+            <section id="dashboard" class="page active">
+                <div class="dashboard-grid">
+
+                    <!-- Карточка баланса -->
+                    <div class="card balance-card fade-in">
+                        <div class="card-header">
+                            <h3><i class="fas fa-coins"></i> Общий баланс</h3>
+                            <span class="period" id="currentMonth">Январь 2024</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="balance-amount" id="totalBalance">0 ₽</div>
+                            <div class="balance-details">
+                                <div class="income">
+                                    <span class="label">Доходы</span>
+                                    <span class="amount positive" id="totalIncome">0 ₽</span>
+                                </div>
+                                <div class="expense">
+                                    <span class="label">Расходы</span>
+                                    <span class="amount negative" id="totalExpense">0 ₽</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="feature">
-                        <i class="fas fa-users"></i>
-                        <h3>Семья</h3>
-                        <p>Общий бюджет с родными</p>
+
+                    <!-- Быстрые действия -->
+                    <div class="card quick-actions slide-up">
+                        <div class="card-header">
+                            <h3><i class="fas fa-bolt"></i> Быстрые действия</h3>
+                        </div>
+                        <div class="card-body">
+                            <button class="action-btn income-btn" onclick="showAddModal('income')">
+                                <i class="fas fa-plus-circle"></i>
+                                Добавить доход
+                            </button>
+                            <button class="action-btn expense-btn" onclick="showAddModal('expense')">
+                                <i class="fas fa-minus-circle"></i>
+                                Добавить расход
+                            </button>
+                            <button class="action-btn transfer-btn" onclick="showTransferModal()">
+                                <i class="fas fa-exchange-alt"></i>
+                                Перевод
+                            </button>
+                        </div>
                     </div>
-                    <div class="feature">
-                        <i class="fas fa-bell"></i>
-                        <h3>Уведомления</h3>
-                        <p>Контроль лимитов</p>
+
+                    <!-- Последние операции -->
+                    <div class="card transactions-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-history"></i> Последние операции</h3>
+                            <a href="#transactions" class="btn btn-secondary" onclick="switchPage('transactions')">Все</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="transactions-list" id="recentTransactions">
+                                <div class="loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <p>Загрузка операций...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Краткая статистика -->
+                    <div class="card stats-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-chart-line"></i> Статистика</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-label">Операций</div>
+                                    <div class="stat-value" id="transactionsCount">0</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Категорий</div>
+                                    <div class="stat-value" id="categoriesCount">0</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Средний расход</div>
+                                    <div class="stat-value" id="avgExpense">0 ₽</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Страница операций -->
+            <section id="transactions" class="page">
+                <div class="page-header">
+                    <h2><i class="fas fa-exchange-alt"></i> Операции</h2>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="showAddModal('income')">
+                            <i class="fas fa-plus"></i> Добавить
+                        </button>
                     </div>
                 </div>
 
-                <button id="startBtn" class="btn-primary">
-                    <i class="fas fa-play"></i> Начать
-                </button>
-            </div>
+                <!-- Фильтры -->
+                <div class="filters card">
+                    <div class="filter-row">
+                        <select id="filterType" class="filter-select" onchange="filterTransactions()">
+                            <option value="all">Все типы</option>
+                            <option value="income">Доходы</option>
+                            <option value="expense">Расходы</option>
+                        </select>
+                        <select id="filterCategory" class="filter-select" onchange="filterTransactions()">
+                            <option value="all">Все категории</option>
+                        </select>
+                        <input type="date" id="filterDate" class="filter-date" onchange="filterTransactions()">
+                    </div>
+                    <div class="filter-row mt-2">
+                        <input type="text" id="filterSearch" class="filter-search" placeholder="Поиск по описанию..."
+                               oninput="filterTransactions()">
+                    </div>
+                </div>
+
+                <!-- Список операций -->
+                <div class="transactions-container" id="transactionsList">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Загрузка операций...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Страница отчетов -->
+            <section id="reports" class="page">
+                <div class="page-header">
+                    <h2><i class="fas fa-chart-pie"></i> Отчеты</h2>
+                </div>
+
+                <!-- Выбор периода -->
+                <div class="card">
+                    <div class="period-selector">
+                        <button class="period-btn active" data-period="month" onclick="changePeriod('month')">Месяц</button>
+                        <button class="period-btn" data-period="week" onclick="changePeriod('week')">Неделя</button>
+                        <button class="period-btn" data-period="year" onclick="changePeriod('year')">Год</button>
+                        <button class="period-btn" data-period="custom" onclick="showCustomPeriod()">
+                            <i class="fas fa-calendar-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Графики -->
+                <div class="charts-container">
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-chart-pie"></i> Расходы по категориям</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="expenseChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card chart-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-chart-line"></i> Динамика баланса</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="balanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Детальная статистика -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-list"></i> Детальная статистика</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="detailedStats">
+                            <div class="loading">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Загрузка статистики...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Страница семьи -->
+            <section id="family" class="page">
+                <div class="page-header">
+                    <h2><i class="fas fa-users"></i> Семья</h2>
+                    <button class="btn btn-primary" onclick="showFamilyModal()">
+                        <i class="fas fa-plus"></i> Пригласить
+                    </button>
+                </div>
+
+                <!-- Информация о семье -->
+                <div class="card family-info-card" id="familyInfo">
+                    <div class="loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Загрузка информации о семье...</p>
+                    </div>
+                </div>
+
+                <!-- Участники семьи -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-user-friends"></i> Участники</h3>
+                        <span class="badge" id="membersCount">0</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="members-list" id="membersList">
+                            <div class="empty-state">
+                                <i class="fas fa-users fa-2x"></i>
+                                <p>Вы еще не создали семью</p>
+                                <button class="btn btn-primary mt-2" onclick="createFamily()">
+                                    Создать семью
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Общие операции -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-exchange-alt"></i> Общие операции</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="family-transactions" id="familyTransactions">
+                            <div class="empty-state">
+                                <i class="fas fa-receipt fa-2x"></i>
+                                <p>Нет общих операций</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Страница бюджета -->
+            <section id="budget" class="page">
+                <div class="page-header">
+                    <h2><i class="fas fa-wallet"></i> Бюджет</h2>
+                    <button class="btn btn-primary" onclick="showBudgetModal()">
+                        <i class="fas fa-plus"></i> Добавить лимит
+                    </button>
+                </div>
+
+                <!-- Лимиты по категориям -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-bar"></i> Лимиты расходов</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="budgets-list" id="budgetsList">
+                            <div class="empty-state">
+                                <i class="fas fa-chart-pie fa-2x"></i>
+                                <p>Лимиты не установлены</p>
+                                <button class="btn btn-primary mt-2" onclick="showBudgetModal()">
+                                    Установить лимиты
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Прогресс по лимитам -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-tachometer-alt"></i> Прогресс</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress-container" id="budgetProgress">
+                            <div class="progress-item">
+                                <div class="progress-label">Общий лимит</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 65%"></div>
+                                </div>
+                                <div class="progress-value">65%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Рекомендации -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-lightbulb"></i> Рекомендации</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="recommendations" id="recommendations">
+                            <div class="recommendation">
+                                <i class="fas fa-info-circle text-info"></i>
+                                <p>Установите лимиты для контроля расходов</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
         </main>
 
+        <!-- Модальное окно добавления операции -->
+        <div id="addModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">Добавить операцию</h3>
+                    <button class="close-modal" onclick="closeModal('addModal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="transactionForm" onsubmit="saveTransaction(event)">
+                        <div class="form-group">
+                            <label for="transType">Тип операции</label>
+                            <div class="type-toggle">
+                                <button type="button" class="type-btn active" onclick="setTransactionType('income')">
+                                    <i class="fas fa-plus-circle"></i> Доход
+                                </button>
+                                <button type="button" class="type-btn" onclick="setTransactionType('expense')">
+                                    <i class="fas fa-minus-circle"></i> Расход
+                                </button>
+                                <input type="hidden" id="transType" name="type" value="income">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="amount">Сумма (₽)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-ruble-sign"></i>
+                                <input type="number" id="amount" name="amount" placeholder="0.00" step="0.01" min="0.01" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="category">Категория</label>
+                            <div class="category-select">
+                                <select id="category" name="category" required>
+                                    <option value="">Выберите категорию</option>
+                                </select>
+                                <button type="button" class="btn btn-secondary" onclick="showCategoryModal()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Описание</label>
+                            <textarea id="description" name="description" placeholder="Введите описание..." rows="2"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="date">Дата</label>
+                            <input type="date" id="date" name="date" required>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Сохранить
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="closeModal('addModal')">
+                                Отмена
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Футер -->
         <footer class="app-footer">
-            <p>Семейная Копилка © 2024</p>
+            <div class="footer-content">
+                <p>Семейная Копилка © 2024</p>
+                <div class="footer-info">
+                    <span id="syncStatus" class="status-indicator">
+                        <i class="fas fa-circle"></i> Онлайн
+                    </span>
+                    <span class="version">v1.0.0</span>
+                </div>
+            </div>
         </footer>
     </div>
 
+    <!-- Скрипты -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/charts.js"></script>
     <script src="/static/js/app.js"></script>
+
+    <!-- Инициализация -->
     <script>
         // Инициализация Telegram Web App
         const tg = window.Telegram.WebApp;
+
+        // Расширяем на весь экран
         tg.expand();
         tg.ready();
 
-        // Получаем telegram_id из URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const telegramId = urlParams.get('telegram_id') || tg.initDataUnsafe.user?.id;
-
-        if (telegramId) {
-            initApp(telegramId);
-        }
-
-        async function initApp(telegramId) {
-            try {
-                const response = await fetch('/api/init', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({telegram_id: parseInt(telegramId)})
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    document.getElementById('startBtn').onclick = () => {
-                        window.location.href = `/dashboard.html?telegram_id=${telegramId}`;
-                    };
-                }
-            } catch (error) {
-                console.error('Ошибка инициализации:', error);
+        // Устанавливаем тему
+        function applyTheme() {
+            const appContainer = document.getElementById('appContainer');
+            if (tg.colorScheme === 'dark') {
+                appContainer.classList.add('tg-theme-dark');
+            } else {
+                appContainer.classList.remove('tg-theme-dark');
             }
         }
+
+        // Слушаем изменение темы
+        tg.onEvent('themeChanged', applyTheme);
+        applyTheme();
+
+        // Получаем данные пользователя из Telegram
+        const user = tg.initDataUnsafe?.user;
+        const telegramId = user?.id || new URLSearchParams(window.location.search).get('telegram_id');
+
+        // Инициализация приложения
+        if (telegramId) {
+            initApp(telegramId);
+        } else {
+            document.getElementById('userName').textContent = 'Гость';
+            showNotification('Для работы приложения требуется авторизация', 'warning');
+        }
+
+        // Установка текущего месяца
+        const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                       'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        const now = new Date();
+        document.getElementById('currentMonth').textContent =
+            `${months[now.getMonth()]} ${now.getFullYear()}`;
+
+        // Установка сегодняшней даты по умолчанию
+        document.getElementById('date').valueAsDate = now;
     </script>
 </body>
 </html>
