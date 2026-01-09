@@ -102,22 +102,14 @@ class Database:
                            type
                            TEXT
                            NOT
-                           NULL, -- 'income' или 'expense'
+                           NULL,
                            description
                            TEXT,
                            date
                            TIMESTAMP
                            DEFAULT
-                           CURRENT_TIMESTAMP,
-                           FOREIGN
-                           KEY
-                       (
-                           user_id
-                       ) REFERENCES users
-                       (
-                           id
+                           CURRENT_TIMESTAMP
                        )
-                           )
                        ''')
 
         # Таблица приглашений
@@ -145,45 +137,7 @@ class Database:
                            used
                            BOOLEAN
                            DEFAULT
-                           FALSE,
-                           created_at
-                           TIMESTAMP
-                           DEFAULT
-                           CURRENT_TIMESTAMP
-                       )
-                       ''')
-
-        # Таблица бюджетов
-        cursor.execute('''
-                       CREATE TABLE IF NOT EXISTS budgets
-                       (
-                           id
-                           INTEGER
-                           PRIMARY
-                           KEY
-                           AUTOINCREMENT,
-                           user_id
-                           INTEGER
-                           NOT
-                           NULL,
-                           family_id
-                           INTEGER,
-                           category
-                           TEXT
-                           NOT
-                           NULL,
-                           amount_limit
-                           REAL
-                           NOT
-                           NULL,
-                           period
-                           TEXT
-                           DEFAULT
-                           'monthly', -- 'daily', 'weekly', 'monthly'
-                           created_at
-                           TIMESTAMP
-                           DEFAULT
-                           CURRENT_TIMESTAMP
+                           FALSE
                        )
                        ''')
 
@@ -195,15 +149,14 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        try:
-            cursor.execute('''
-                           INSERT
-                           OR IGNORE INTO users (telegram_id, username, first_name)
-                VALUES (?, ?, ?)
-                           ''', (telegram_id, username, first_name))
-            conn.commit()
-        finally:
-            conn.close()
+        cursor.execute('''
+                       INSERT
+                       OR IGNORE INTO users (telegram_id, username, first_name)
+            VALUES (?, ?, ?)
+                       ''', (telegram_id, username, first_name))
+
+        conn.commit()
+        conn.close()
 
     def user_exists(self, telegram_id: int) -> bool:
         """Проверка существования пользователя"""
@@ -215,6 +168,17 @@ class Database:
 
         conn.close()
         return exists
+
+    def get_user_by_telegram_id(self, telegram_id: int) -> Dict:
+        """Получение пользователя по Telegram ID"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM users WHERE telegram_id = ?', (telegram_id,))
+        user = cursor.fetchone()
+        conn.close()
+
+        return dict(user) if user else None
 
     def add_transaction(self, user_id: int, amount: float, category: str,
                         type: str, description: str = '', family_id: int = None) -> int:
@@ -243,11 +207,8 @@ class Database:
                        FROM transactions t
                                 LEFT JOIN users u ON t.user_id = u.id
                        WHERE t.user_id = ?
-                          OR t.family_id IN (SELECT family_id
-                                             FROM users
-                                             WHERE id = ?)
                        ORDER BY t.date DESC LIMIT ?
-                       ''', (user_id, user_id, limit))
+                       ''', (user_id, limit))
 
         transactions = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -297,8 +258,68 @@ class Database:
             'total_income': total_income,
             'total_expense': total_expense,
             'balance': total_income - total_expense,
-            'categories': categories,
-            'month': datetime.now().strftime('%B %Y')
+            'categories': categories
+        }
+
+    def get_category_report(self, user_id: int, start_date=None, end_date=None) -> Dict:
+        """Получение отчета по категориям"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        query = '''
+                SELECT category, type, SUM(amount) as total
+                FROM transactions
+                WHERE user_id = ? \
+                '''
+        params = [user_id]
+
+        if start_date:
+            query += " AND date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND date <= ?"
+            params.append(end_date)
+
+        query += " GROUP BY category, type"
+
+        cursor.execute(query, params)
+        results = [dict(row) for row in cursor.fetchall()]
+
+        report = {'categories': {}}
+        for item in results:
+            category = item['category']
+            if category not in report['categories']:
+                report['categories'][category] = {'income': 0, 'expense': 0}
+
+            if item['type'] == 'income':
+                report['categories'][category]['income'] = item['total']
+            else:
+                report['categories'][category]['expense'] = item['total']
+
+        conn.close()
+        return report
+
+    def get_updates_since(self, user_id: int, last_sync: str = None) -> Dict:
+        """Получение обновлений после указанного времени"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        if not last_sync:
+            last_sync = '1970-01-01'
+
+        cursor.execute('''
+                       SELECT *
+                       FROM transactions
+                       WHERE user_id = ? AND date > ?
+                       ORDER BY date DESC
+                       ''', (user_id, last_sync))
+
+        transactions = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return {
+            'transactions': transactions,
+            'count': len(transactions)
         }
 
     def create_family(self, user_id: int, family_name: str) -> int:
@@ -310,7 +331,6 @@ class Database:
                        (family_name, user_id))
         family_id = cursor.lastrowid
 
-        # Обновляем family_id у создателя
         cursor.execute('UPDATE users SET family_id = ? WHERE id = ?',
                        (family_id, user_id))
 
@@ -328,347 +348,24 @@ class Database:
         cursor.execute('''
                        INSERT INTO invites (code, created_by, expires_at)
                        VALUES (?, ?, ?)
-                       ''', (code, user_id, expires_at.isoformat()))
+                       ''', (code, user_id, expires_at))
 
         conn.commit()
         conn.close()
 
-    def join_family_by_invite(self, user_id: int, invite_code: str) -> bool:
-        """Присоединение к семье по инвайт-коду"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        # Проверяем инвайт
-        cursor.execute('''
-                       SELECT created_by, expires_at
-                       FROM invites
-                       WHERE code = ?
-                         AND used = FALSE
-                       ''', (invite_code,))
-
-        invite = cursor.fetchone()
-        if not invite:
-            conn.close()
-            return False
-
-        # Проверяем срок действия
-        expires_at = datetime.fromisoformat(invite['expires_at'])
-        if datetime.now() > expires_at:
-            conn.close()
-            return False
-
-        # Получаем family_id создателя
-        cursor.execute('SELECT family_id FROM users WHERE id = ?', (invite['created_by'],))
-        creator = cursor.fetchone()
-
-        if creator and creator['family_id']:
-            # Обновляем family_id пользователя
-            cursor.execute('UPDATE users SET family_id = ? WHERE id = ?',
-                           (creator['family_id'], user_id))
-
-            # Помечаем инвайт как использованный
-            cursor.execute('UPDATE invites SET used = TRUE WHERE code = ?', (invite_code,))
-
-            conn.commit()
-            conn.close()
-            return True
-
-        conn.close()
-        return False
-
-    # ===== НОВЫЕ МЕТОДЫ (которых не хватало) =====
-
-    def get_category_report(self, user_id: int, start_date=None, end_date=None) -> Dict:
-        """Получение отчета по категориям"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        query = '''
-                SELECT category, \
-                       type, \
-                       SUM(amount) as total, \
-                       COUNT(*) as count
-                FROM transactions
-                WHERE user_id = ? \
-                '''
-        params = [user_id]
-
-        if start_date:
-            query += " AND date >= ?"
-            params.append(start_date)
-        if end_date:
-            query += " AND date <= ?"
-            params.append(end_date)
-
-        query += " GROUP BY category, type ORDER BY total DESC"
-
-        cursor.execute(query, params)
-        results = [dict(row) for row in cursor.fetchall()]
-
-        # Формируем структурированный отчет
-        report = {
-            'by_category': {},
-            'total_income': 0,
-            'total_expense': 0,
-            'period': {
-                'start': start_date,
-                'end': end_date or datetime.now().isoformat()
-            }
-        }
-
-        for item in results:
-            category = item['category']
-            if category not in report['by_category']:
-                report['by_category'][category] = {
-                    'income': 0,
-                    'expense': 0,
-                    'total': 0
-                }
-
-            if item['type'] == 'income':
-                report['by_category'][category]['income'] = item['total']
-                report['total_income'] += item['total']
-            else:
-                report['by_category'][category]['expense'] = item['total']
-                report['total_expense'] += item['total']
-
-            report['by_category'][category]['total'] = (
-                    report['by_category'][category]['income'] -
-                    report['by_category'][category]['expense']
-            )
-
-        conn.close()
-        return report
-
-    def get_updates_since(self, user_id: int, last_sync: str = None) -> Dict:
-        """Получение обновлений после указанного времени"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        if not last_sync:
-            last_sync = '1970-01-01 00:00:00'
-
-        # Получаем новые транзакции
-        cursor.execute('''
-                       SELECT t.*,
-                              u.username as user_name
-                       FROM transactions t
-                                LEFT JOIN users u ON t.user_id = u.id
-                       WHERE (t.user_id = ? OR t.family_id IN (SELECT family_id
-                                                               FROM users
-                                                               WHERE id = ?))
-                         AND t.date > ?
-                       ORDER BY t.date DESC
-                       ''', (user_id, user_id, last_sync))
-
-        transactions = [dict(row) for row in cursor.fetchall()]
-
-        # Получаем обновления семьи
-        cursor.execute('''
-                       SELECT *
-                       FROM families
-                       WHERE id IN (SELECT family_id
-                                    FROM users
-                                    WHERE id = ?)
-                         AND created_at > ?
-                       ''', (user_id, last_sync))
-
-        family_updates = [dict(row) for row in cursor.fetchall()]
-
-        # Получаем новые приглашения
-        cursor.execute('''
-                       SELECT *
-                       FROM invites
-                       WHERE created_by = ?
-                         AND created_at > ?
-                       ''', (user_id, last_sync))
-
-        invites = [dict(row) for row in cursor.fetchall()]
-
-        conn.close()
-
-        return {
-            'transactions': transactions,
-            'family_updates': family_updates,
-            'invites': invites,
-            'last_sync': datetime.now().isoformat(),
-            'count': len(transactions) + len(family_updates) + len(invites)
-        }
-
-    def get_user(self, user_id: int) -> Dict:
-        """Получение данных пользователя"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('''
-                       SELECT u.*,
-                              f.name               as family_name,
-                              COUNT(DISTINCT t.id) as transaction_count
-                       FROM users u
-                                LEFT JOIN families f ON u.family_id = f.id
-                                LEFT JOIN transactions t ON u.id = t.user_id
-                       WHERE u.id = ?
-                       GROUP BY u.id
-                       ''', (user_id,))
-
-        user = cursor.fetchone()
-        conn.close()
-
-        if user:
-            return dict(user)
-
-        # Если пользователь не найден, создаем заглушку
-        return {
-            'id': user_id,
-            'telegram_id': 0,
-            'username': 'Неизвестный',
-            'first_name': 'Пользователь',
-            'family_id': None,
-            'family_name': None,
-            'transaction_count': 0
-        }
-
-    def get_family_data(self, user_id: int) -> Dict:
-        """Получение данных семьи пользователя"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        # Получаем данные семьи
-        cursor.execute('''
-                       SELECT f.*,
-                              u.username           as creator_name,
-                              COUNT(DISTINCT m.id) as member_count,
-                              COUNT(DISTINCT t.id) as family_transactions
-                       FROM families f
-                                JOIN users u ON f.created_by = u.id
-                                LEFT JOIN users m ON f.id = m.family_id
-                                LEFT JOIN transactions t ON f.id = t.family_id
-                       WHERE f.id IN (SELECT family_id
-                                      FROM users
-                                      WHERE id = ?)
-                       GROUP BY f.id
-                       ''', (user_id,))
-
-        family = cursor.fetchone()
-
-        if not family:
-            conn.close()
-            return {
-                'has_family': False,
-                'message': 'Вы еще не присоединились к семье'
-            }
-
-        # Получаем членов семьи
-        cursor.execute('''
-                       SELECT id,
-                              username,
-                              first_name,
-                              created_at
-                       FROM users
-                       WHERE family_id = ?
-                       ORDER BY created_at DESC
-                       ''', (family['id'],))
-
-        members = [dict(row) for row in cursor.fetchall()]
-
-        # Получаем семейные транзакции
-        cursor.execute('''
-                       SELECT t.*,
-                              u.username as user_name
-                       FROM transactions t
-                                JOIN users u ON t.user_id = u.id
-                       WHERE t.family_id = ?
-                       ORDER BY t.date DESC LIMIT 10
-                       ''', (family['id'],))
-
-        family_transactions = [dict(row) for row in cursor.fetchall()]
-
-        conn.close()
-
-        return {
-            'has_family': True,
-            'family': dict(family),
-            'members': members,
-            'recent_transactions': family_transactions,
-            'member_count': len(members)
-        }
-
-    def get_recent_transactions(self, user_id: int, limit: int = 5) -> List[Dict]:
-        """Получение последних транзакций"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('''
-                       SELECT t.*,
-                              u.username as user_name
-                       FROM transactions t
-                                LEFT JOIN users u ON t.user_id = u.id
-                       WHERE t.user_id = ?
-                          OR t.family_id IN (SELECT family_id
-                                             FROM users
-                                             WHERE id = ?)
-                       ORDER BY t.date DESC LIMIT ?
-                       ''', (user_id, user_id, limit))
-
-        transactions = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-
-        return transactions
-
-    def get_transaction_by_id(self, transaction_id: int) -> Dict:
-        """Получение транзакции по ID"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('''
-                       SELECT t.*,
-                              u.username as user_name
-                       FROM transactions t
-                                LEFT JOIN users u ON t.user_id = u.id
-                       WHERE t.id = ?
-                       ''', (transaction_id,))
-
-        transaction = cursor.fetchone()
-        conn.close()
-
-        return dict(transaction) if transaction else None
-
-    def delete_transaction(self, transaction_id: int) -> bool:
-        """Удаление транзакции"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('DELETE FROM transactions WHERE id = ?', (transaction_id,))
-        deleted = cursor.rowcount > 0
-
-        conn.commit()
-        conn.close()
-        return deleted
-
-    def get_user_by_telegram_id(self, telegram_id: int) -> Dict:
-        """Получение пользователя по Telegram ID"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('SELECT * FROM users WHERE telegram_id = ?', (telegram_id,))
-        user = cursor.fetchone()
-        conn.close()
-
-        return dict(user) if user else None
-
-    def update_user_family(self, user_id: int, family_id: int) -> bool:
-        """Обновление family_id пользователя"""
+    def join_family(self, user_id: int, family_id: int) -> bool:
+        """Присоединение к семье"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
         cursor.execute('UPDATE users SET family_id = ? WHERE id = ?',
                        (family_id, user_id))
 
-        updated = cursor.rowcount > 0
+        success = cursor.rowcount > 0
         conn.commit()
         conn.close()
 
-        return updated
+        return success
 
     def get_family_members(self, family_id: int) -> List[Dict]:
         """Получение членов семьи"""
@@ -676,106 +373,12 @@ class Database:
         cursor = conn.cursor()
 
         cursor.execute('''
-                       SELECT id,
-                              telegram_id,
-                              username,
-                              first_name,
-                              created_at
+                       SELECT id, username, first_name
                        FROM users
                        WHERE family_id = ?
-                       ORDER BY created_at
                        ''', (family_id,))
 
         members = [dict(row) for row in cursor.fetchall()]
         conn.close()
 
         return members
-
-    def get_family_transactions(self, family_id: int, limit: int = 50) -> List[Dict]:
-        """Получение транзакций семьи"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute('''
-                       SELECT t.*,
-                              u.username as user_name
-                       FROM transactions t
-                                JOIN users u ON t.user_id = u.id
-                       WHERE t.family_id = ?
-                       ORDER BY t.date DESC LIMIT ?
-                       ''', (family_id, limit))
-
-        transactions = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-
-        return transactions
-
-    def get_budget_report(self, user_id: int) -> Dict:
-        """Получение отчета по бюджетам"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        # Получаем установленные бюджеты
-        cursor.execute('''
-                       SELECT *
-                       FROM budgets
-                       WHERE user_id = ?
-                          OR family_id IN (SELECT family_id
-                                           FROM users
-                                           WHERE id = ?)
-                       ''', (user_id, user_id))
-
-        budgets = [dict(row) for row in cursor.fetchall()]
-
-        # Для каждого бюджета считаем фактические расходы
-        for budget in budgets:
-            cursor.execute('''
-                           SELECT COALESCE(SUM(amount), 0) as spent
-                           FROM transactions
-                           WHERE category = ?
-                             AND type = 'expense'
-                             AND user_id = ?
-                             AND date >= datetime('now'
-                               , 'start of month')
-                           ''', (budget['category'], user_id))
-
-            spent = cursor.fetchone()[0]
-            budget['spent'] = spent
-            budget['remaining'] = budget['amount_limit'] - spent
-            budget['percentage'] = (spent / budget['amount_limit'] * 100) if budget['amount_limit'] > 0 else 0
-
-        conn.close()
-
-        return {
-            'budgets': budgets,
-            'total_budgets': len(budgets),
-            'total_limit': sum(b['amount_limit'] for b in budgets),
-            'total_spent': sum(b['spent'] for b in budgets)
-        }
-
-    def set_budget(self, user_id: int, category: str, amount_limit: float,
-                   period: str = 'monthly', family_id: int = None) -> int:
-        """Установка бюджета"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-
-        # Удаляем старый бюджет для этой категории
-        cursor.execute('''
-                       DELETE
-                       FROM budgets
-                       WHERE user_id = ?
-                         AND category = ?
-                         AND period = ?
-                       ''', (user_id, category, period))
-
-        # Добавляем новый бюджет
-        cursor.execute('''
-                       INSERT INTO budgets (user_id, family_id, category, amount_limit, period)
-                       VALUES (?, ?, ?, ?, ?)
-                       ''', (user_id, family_id, category, amount_limit, period))
-
-        budget_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-
-        return budget_id

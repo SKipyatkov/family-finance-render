@@ -6,15 +6,13 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: waitress-serve --listen=0.0.0.0:$PORT app:app
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.11
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: WEB_APP_URL
-        value: https://family-finance-render.onrender.com
+        value: https://family-finance-bot-ccdb.onrender.com
       - key: SECRET_KEY
         generateValue: true
-      - key: DATABASE_URL
-        value: sqlite:///family_finance.db
+      - key: FLASK_ENV
+        value: production
     healthCheckPath: /health
     autoDeploy: true

@@ -4,247 +4,82 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Семейная Копилка 💰</title>
-
-    <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-    <!-- Стили -->
     <link rel="stylesheet" href="/static/css/styles.css">
-    <link rel="stylesheet" href="/static/css/animations.css">
-
-    <!-- Иконки -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Библиотеки для графиков -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body>
     <div class="app-container">
-        <!-- Шапка -->
         <header class="app-header">
-            <div class="header-content">
-                <h1 class="logo">
-                    <i class="fas fa-piggy-bank"></i>
-                    Семейная Копилка
-                </h1>
-                <div class="user-info" id="userInfo">
-                    <i class="fas fa-user-circle"></i>
-                    <span id="userName">Загрузка...</span>
-                </div>
-            </div>
-
-            <!-- Навигация -->
-            <nav class="main-nav">
-                <a href="#dashboard" class="nav-item active" data-page="dashboard">
-                    <i class="fas fa-home"></i>
-                    <span>Главная</span>
-                </a>
-                <a href="#transactions" class="nav-item" data-page="transactions">
-                    <i class="fas fa-exchange-alt"></i>
-                    <span>Транзакции</span>
-                </a>
-                <a href="#reports" class="nav-item" data-page="reports">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Отчеты</span>
-                </a>
-                <a href="#family" class="nav-item" data-page="family">
-                    <i class="fas fa-users"></i>
-                    <span>Семья</span>
-                </a>
-                <a href="#budget" class="nav-item" data-page="budget">
-                    <i class="fas fa-wallet"></i>
-                    <span>Бюджет</span>
-                </a>
-            </nav>
+            <h1><i class="fas fa-piggy-bank"></i> Семейная Копилка</h1>
         </header>
 
-        <!-- Основной контент -->
         <main class="app-main">
-            <!-- Дашборд -->
-            <section id="dashboard" class="page active">
-                <div class="dashboard-grid">
-                    <!-- Карточка баланса -->
-                    <div class="card balance-card fade-in">
-                        <div class="card-header">
-                            <h3><i class="fas fa-coins"></i> Общий баланс</h3>
-                            <span class="period">За месяц</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="balance-amount" id="totalBalance">0 ₽</div>
-                            <div class="balance-details">
-                                <div class="income">
-                                    <span class="label">Доходы</span>
-                                    <span class="amount positive" id="totalIncome">0 ₽</span>
-                                </div>
-                                <div class="expense">
-                                    <span class="label">Расходы</span>
-                                    <span class="amount negative" id="totalExpense">0 ₽</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="welcome-section">
+                <h2>Добро пожаловать!</h2>
+                <p>Управляйте семейным бюджетом вместе</p>
 
-                    <!-- Быстрые действия -->
-                    <div class="card quick-actions slide-in-right">
-                        <div class="card-header">
-                            <h3><i class="fas fa-bolt"></i> Быстрые действия</h3>
-                        </div>
-                        <div class="card-body">
-                            <button class="action-btn income-btn" data-action="add-income">
-                                <i class="fas fa-plus-circle"></i>
-                                Добавить доход
-                            </button>
-                            <button class="action-btn expense-btn" data-action="add-expense">
-                                <i class="fas fa-minus-circle"></i>
-                                Добавить расход
-                            </button>
-                            <button class="action-btn transfer-btn" data-action="transfer">
-                                <i class="fas fa-exchange-alt"></i>
-                                Перевод
-                            </button>
-                        </div>
+                <div class="features">
+                    <div class="feature">
+                        <i class="fas fa-chart-pie"></i>
+                        <h3>Отчеты</h3>
+                        <p>Наглядная аналитика расходов</p>
                     </div>
-
-                    <!-- График расходов -->
-                    <div class="card chart-card scale-in">
-                        <div class="card-header">
-                            <h3><i class="fas fa-chart-line"></i> Расходы по категориям</h3>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="expenseChart"></canvas>
-                        </div>
+                    <div class="feature">
+                        <i class="fas fa-users"></i>
+                        <h3>Семья</h3>
+                        <p>Общий бюджет с родными</p>
                     </div>
-
-                    <!-- Последние транзакции -->
-                    <div class="card transactions-card">
-                        <div class="card-header">
-                            <h3><i class="fas fa-history"></i> Последние операции</h3>
-                            <a href="#transactions" class="view-all">Все →</a>
-                        </div>
-                        <div class="card-body">
-                            <div class="transactions-list" id="recentTransactions">
-                                <!-- Транзакции будут загружены через JS -->
-                                <div class="loading">
-                                    <i class="fas fa-spinner fa-spin"></i> Загрузка...
-                                </div>
-                            </div>
-                        </div>
+                    <div class="feature">
+                        <i class="fas fa-bell"></i>
+                        <h3>Уведомления</h3>
+                        <p>Контроль лимитов</p>
                     </div>
                 </div>
-            </section>
 
-            <!-- Страница транзакций -->
-            <section id="transactions" class="page">
-                <div class="page-header">
-                    <h2><i class="fas fa-exchange-alt"></i> Транзакции</h2>
-                    <button class="btn btn-primary" id="addTransactionBtn">
-                        <i class="fas fa-plus"></i> Новая транзакция
-                    </button>
-                </div>
-
-                <!-- Фильтры -->
-                <div class="filters">
-                    <select id="filterType" class="filter-select">
-                        <option value="all">Все типы</option>
-                        <option value="income">Доходы</option>
-                        <option value="expense">Расходы</option>
-                    </select>
-                    <select id="filterCategory" class="filter-select">
-                        <option value="all">Все категории</option>
-                        <!-- Категории загружаются через JS -->
-                    </select>
-                    <input type="date" id="filterDate" class="filter-date">
-                    <button class="btn btn-secondary" id="applyFilters">Применить</button>
-                </div>
-
-                <!-- Список транзакций -->
-                <div class="transactions-container" id="transactionsList">
-                    <!-- Транзакции загружаются через JS -->
-                </div>
-            </section>
-
-            <!-- Модальное окно добавления транзакции -->
-            <div id="transactionModal" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Новая транзакция</h3>
-                        <button class="close-modal">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="transactionForm">
-                            <div class="form-group">
-                                <label for="transType">Тип</label>
-                                <div class="type-toggle">
-                                    <button type="button" class="type-btn active" data-type="income">Доход</button>
-                                    <button type="button" class="type-btn" data-type="expense">Расход</button>
-                                    <input type="hidden" id="transType" name="type" value="income">
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="amount">Сумма</label>
-                                <div class="input-with-icon">
-                                    <i class="fas fa-ruble-sign"></i>
-                                    <input type="number" id="amount" name="amount" placeholder="0.00" step="0.01" required>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="category">Категория</label>
-                                <select id="category" name="category" required>
-                                    <option value="">Выберите категорию</option>
-                                    <!-- Категории загружаются через JS -->
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="description">Описание</label>
-                                <textarea id="description" name="description" placeholder="Введите описание..."></textarea>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="date">Дата</label>
-                                <input type="date" id="date" name="date" value="<?php echo date('Y-m-d'); ?>">
-                            </div>
-
-                            <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save"></i> Сохранить
-                                </button>
-                                <button type="button" class="btn btn-secondary close-modal">Отмена</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <button id="startBtn" class="btn-primary">
+                    <i class="fas fa-play"></i> Начать
+                </button>
             </div>
         </main>
 
-        <!-- Футер -->
         <footer class="app-footer">
-            <p>Семейная Копилка © 2024 | Синхронизация: <span id="syncStatus" class="synced">онлайн</span></p>
+            <p>Семейная Копилка © 2024</p>
         </footer>
     </div>
 
-    <!-- Скрипты -->
-    <script src="/static/js/api.js"></script>
-    <script src="/static/js/charts.js"></script>
     <script src="/static/js/app.js"></script>
-
     <script>
         // Инициализация Telegram Web App
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.ready();
 
-        // Получаем user_id из URL
+        // Получаем telegram_id из URL
         const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('user_id') || localStorage.getItem('user_id');
+        const telegramId = urlParams.get('telegram_id') || tg.initDataUnsafe.user?.id;
 
-        if (userId) {
-            localStorage.setItem('user_id', userId);
-            // Загружаем данные пользователя
-            loadUserData(userId);
+        if (telegramId) {
+            initApp(telegramId);
+        }
+
+        async function initApp(telegramId) {
+            try {
+                const response = await fetch('/api/init', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({telegram_id: parseInt(telegramId)})
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('startBtn').onclick = () => {
+                        window.location.href = `/dashboard.html?telegram_id=${telegramId}`;
+                    };
+                }
+            } catch (error) {
+                console.error('Ошибка инициализации:', error);
+            }
         }
     </script>
 </body>
